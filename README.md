@@ -58,6 +58,14 @@ next-character cross entropy loss / autoregressive generation
 
 在当前默认配置中，`09_train.py` 使用 `d_model=32`、`num_heads=4`、`hidden_dim=128`、`num_layers=2`、`context_length=16`。这些参数是为了便于观察和快速实验，不代表生产模型配置。
 
+### 可视化结构图 / Visual overview
+
+下面的图把从文本输入到 next-token prediction、训练和自回归生成的路径放在一起，也展开了单个 Transformer block 的内部结构。
+
+![Transformer data flow](docs/transformer-flow.png)
+
+The diagram summarizes the end-to-end path and expands one Transformer block: pre-normalization, causal multi-head attention, residual connection, feed-forward network, and the second residual connection.
+
 ## 环境 / Requirements
 
 - Python `>=3.12`
