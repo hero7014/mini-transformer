@@ -4,7 +4,30 @@ __pycache__/
 build/
 dist/
 wheels/
-*.egg-info
+*.egg-info/
 
 # Virtual environments
-.venv
+.venv/
+
+# Environment variables and local secrets
+.env
+.env.*
+!.env.example
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs and local experiment outputs
+*.log
+outputs/
+runs/
+
+# Generated model checkpoints
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
