@@ -1,100 +1,126 @@
-# Mini Transformer / 手写 Transformer
+# Mini Transformer
 
-一个用于学习 Transformer 内部机制的教学型 Mini GPT 项目。项目从张量运算、QKV、因果掩码和多头注意力开始，逐步组合成 Transformer block，最后完成一个极小的字符级语言模型训练与自回归生成流程。
+A small, from-scratch Mini GPT project for understanding how a Transformer works internally. The implementation starts with tensor operations, QKV projections, causal masking, and multi-head attention, then builds a complete character-level language-model training and generation pipeline.
 
-> This is a small, from-scratch learning project for understanding the internal mechanics of a Transformer. It builds the model step by step—from tensor operations, QKV projections, causal masking, and multi-head attention to a complete character-level Mini GPT training and generation loop.
+## Contents
 
-## 项目目标 / Goals
+- [Overview](#overview)
+- [Project Goals](#project-goals)
+- [Project Structure](#project-structure)
+- [Model Data Flow](#model-data-flow)
+- [Architecture Diagram](#architecture-diagram)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Running the Experiments](#running-the-experiments)
+- [Training and Generation](#training-and-generation)
+- [Checkpoints](#checkpoints)
+- [Learning Notes](#learning-notes)
+- [License](#license)
 
-- 用尽量少的抽象观察 Transformer 的核心张量形状和数据流。
-- 理解 self-attention、causal mask、residual connection、LayerNorm、FFN 和 next-token prediction。
-- 用一个极小的中文字符语料跑通训练、保存 checkpoint 和自回归生成。
+## Overview
 
-The goal is understanding and experimentation, not competitive language modeling. The training corpus is intentionally tiny, so the model mainly learns to reproduce local patterns from the demo sentences.
+This repository is a hands-on learning project. It prioritizes readable tensor operations over production abstractions, so the core attention, feed-forward, residual, and normalization steps remain easy to inspect.
 
-## 结构总览 / Project map
+The final model is intentionally tiny. It trains on a small Chinese character corpus and is designed to validate the mechanics of next-token prediction, not to provide useful general-purpose language generation.
+
+## Project Goals
+
+- Inspect the tensor shapes and data flow inside a Transformer.
+- Understand Q/K/V projections and scaled dot-product attention.
+- Understand causal masking, multi-head attention, residual connections, LayerNorm, and GELU.
+- Train a minimal character-level language model from scratch.
+- Load the learned parameters and generate text autoregressively.
+
+## Project Structure
+
+| File | Description |
+| --- | --- |
+| `01_tensor.py` | Tensor operations and linear transformations |
+| `02_qkv.py` | Q/K/V projections and attention scores |
+| `03_train_qkv.py` | A minimal optimization experiment for QKV parameters |
+| `04_causal_mask.py` | Preventing each position from seeing future tokens |
+| `05_multi_head.py` | Splitting and merging multiple attention heads |
+| `06_transformer_block.py` | LayerNorm, attention, residual paths, and FFN |
+| `07_embedding.py` | Token and positional embeddings |
+| `08_mini_gpt.py` | A single-file teaching demonstration of Mini GPT |
+| `09_train.py` | Character-level next-token training |
+| `10_generate.py` | Checkpoint loading and autoregressive generation |
+| `mini_gpt_model.py` | Reusable MiniGPT, attention, FFN, and block definitions |
+| `gpu_test.py` | CUDA availability and device checks |
+
+## Model Data Flow
 
 ```text
-01_tensor.py          基础张量与线性变换 / tensor and linear algebra basics
-02_qkv.py             Q/K/V 投影与注意力分数 / QKV projections and scores
-03_train_qkv.py       对 QKV 参数做最小训练实验 / minimal QKV training experiment
-04_causal_mask.py     因果掩码：当前位置不能看未来 / causal attention mask
-05_multi_head.py      多头注意力的拆分与合并 / split and merge attention heads
-06_transformer_block.py
-                      Transformer block：Norm → Attention → Residual → FFN
-07_embedding.py       token embedding + positional embedding
-08_mini_gpt.py        从 embedding 到 logits 的单文件教学演示
-09_train.py           字符级 next-token 训练并保存 checkpoint
-10_generate.py        加载 checkpoint，逐 token 自回归生成
-mini_gpt_model.py     可复用的 MiniGPT、Attention、FFN 和 Block 定义
-gpu_test.py           CUDA 环境检查
+Text
+  ↓
+Character vocabulary (stoi / itos)
+  ↓
+Token IDs: (B, T)
+  ↓
+Token embedding + positional embedding
+  ↓
+TransformerBlock × N
+  ├─ LayerNorm
+  ├─ Causal multi-head self-attention
+  ├─ Residual connection
+  ├─ LayerNorm
+  ├─ Feed-forward network: Linear → GELU → Linear
+  └─ Residual connection
+  ↓
+Final LayerNorm + language-model head
+  ↓
+Logits: (B, T, vocab_size)
+  ↓
+Next-token cross-entropy loss / autoregressive generation
 ```
 
-## 数据流 / Model path
+The default training configuration in `09_train.py` is:
 
-```text
-字符文本
-  ↓
-字符词表（stoi / itos）
-  ↓
-token ids: (B, T)
-  ↓
-token embedding + positional embedding
-  ↓
-重复 num_layers 次 TransformerBlock
-  ├─ LayerNorm
-  ├─ causal multi-head self-attention
-  ├─ residual connection
-  ├─ LayerNorm
-  ├─ GELU feed-forward network
-  └─ residual connection
-  ↓
-final LayerNorm + language-model head
-  ↓
-logits: (B, T, vocab_size)
-  ↓
-next-character cross entropy loss / autoregressive generation
-```
+- `d_model=32`
+- `num_heads=4`
+- `hidden_dim=128`
+- `num_layers=2`
+- `context_length=16`
 
-在当前默认配置中，`09_train.py` 使用 `d_model=32`、`num_heads=4`、`hidden_dim=128`、`num_layers=2`、`context_length=16`。这些参数是为了便于观察和快速实验，不代表生产模型配置。
+These values are chosen for fast, inspectable experiments and are not intended as production-model settings.
 
-### 可视化结构图 / Visual overview
+## Architecture Diagram
 
-下面的图把从文本输入到 next-token prediction、训练和自回归生成的路径放在一起，也展开了单个 Transformer block 的内部结构。
+<p align="center">
+  <img src="docs/transformer-flow.png" alt="Mini Transformer architecture and data flow" width="420">
+</p>
 
-![Transformer data flow](docs/transformer-flow.png)
+The diagram summarizes the end-to-end path from text input to next-token prediction, training, checkpoint saving, and autoregressive generation. It also expands one Transformer block to show its internal operations.
 
-The diagram summarizes the end-to-end path and expands one Transformer block: pre-normalization, causal multi-head attention, residual connection, feed-forward network, and the second residual connection.
-
-## 环境 / Requirements
+## Requirements
 
 - Python `>=3.12`
 - PyTorch `>=2.14.1`
 - NumPy `>=2.5.2`
-- 有 CUDA 时脚本会自动使用 GPU，否则回退到 CPU。
+- `uv` is recommended for reproducing the locked environment.
 
-The lock file was generated with `uv`. The project also contains a CUDA 12.6 PyTorch index configuration; if you do not need CUDA, install a CPU-compatible PyTorch build according to your platform.
+If CUDA is available, the scripts automatically use the GPU; otherwise, they fall back to the CPU. The project includes a CUDA 12.6 PyTorch index configuration. For CPU-only environments, install a platform-compatible PyTorch build.
 
-## 安装 / Installation
+## Installation
 
-使用 `uv`：
+Using `uv`:
 
 ```bash
 uv sync
 ```
 
-也可以使用普通 Python 环境：
+Or create a regular Python virtual environment:
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate       # Windows: .venv\\Scripts\\activate
+source .venv/bin/activate       # Windows PowerShell: .venv\Scripts\activate
 python -m pip install -U pip
 python -m pip install numpy torch
 ```
 
-## 运行 / Run
+## Running the Experiments
 
-按学习顺序运行前面的实验：
+Run the introductory experiments in order:
 
 ```bash
 python 01_tensor.py
@@ -106,40 +132,44 @@ python 07_embedding.py
 python 08_mini_gpt.py
 ```
 
-训练字符级 Mini GPT：
+## Training and Generation
+
+Train the character-level Mini GPT:
 
 ```bash
 python 09_train.py
 ```
 
-训练完成后会在本地生成 `checkpoints/mini_gpt.pt`。训练步数可以通过环境变量调整：
+The number of training steps can be changed with the `STEPS` environment variable:
 
 ```bash
-STEPS=600 python 09_train.py       # Linux/macOS
+STEPS=600 python 09_train.py        # Linux/macOS
 $env:STEPS=600; python 09_train.py # PowerShell
 ```
 
-加载 checkpoint 并生成：
+Generate text from a trained checkpoint:
 
 ```bash
 python 10_generate.py --prompt "我喜欢" --tokens 24
 python 10_generate.py --prompt "我喜欢" --tokens 24 --sample --temperature 0.8 --top-k 3
 ```
 
-`10_generate.py` 的 prompt 只能使用训练词表中的字符。由于语料很小，生成结果主要用于验证流程，不应视为有实际语言能力的模型。
+The prompt must contain characters included in the training vocabulary. Because the corpus is intentionally tiny, generated text is only a demonstration of the inference pipeline.
 
-## Checkpoints / 模型文件
+## Checkpoints
 
-模型 checkpoint 是训练产生的二进制输出，默认不会提交到 Git。克隆仓库后先运行 `09_train.py`，再运行 `10_generate.py`。这样可以避免把本地实验产物混入源码历史，也让复现实验路径更明确。
+Generated model checkpoints are ignored by Git. Running `09_train.py` creates:
 
-The repository intentionally ignores generated checkpoints. Run the training script first to create the local file required by the generation script.
+```text
+checkpoints/mini_gpt.pt
+```
 
-## 学习记录 / Learning notes
+Run training before running `10_generate.py` after cloning the repository. Keeping checkpoints out of version control avoids mixing local experiment artifacts with source code and makes the reproduction path explicit.
 
-这个仓库记录的是我对 Transformer 原理的逐步拆解和实验实现。代码优先服务于可读性：部分矩阵参数直接使用 `nn.Parameter`，没有引入完整生产框架中的 tokenizer、数据管道、分布式训练或复杂配置系统。
+## Learning Notes
 
-This repository is a hands-on implementation for learning. It favors inspectable tensor operations over production abstractions, and intentionally omits a full tokenizer, large-scale data pipeline, distributed training, and production configuration management.
+This repository documents a step-by-step implementation of the Transformer mechanism. It intentionally omits a full tokenizer, large-scale data pipeline, distributed training, and production configuration management so that the core tensor operations remain visible.
 
 ## License
 
-当前仓库尚未选择开源许可证。如果希望别人明确知道如何使用、修改和分发代码，建议后续添加 MIT 或 Apache-2.0 等许可证。
+No open-source license has been selected yet. Add a license such as MIT or Apache-2.0 if you want to define how others may use, modify, and redistribute this code.
