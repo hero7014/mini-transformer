@@ -65,9 +65,9 @@ flowchart LR
     update --> save["Save checkpoint"]
     pred --> decode["Select token<br/>append + repeat"]
 
-    classDef input fill:#dbeafe,stroke:#2563eb,color:#172554,stroke-width:1.5px
-    classDef core fill:#bfdbfe,stroke:#2563eb,color:#172554,stroke-width:1.5px
-    classDef output fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:1.5px
+    classDef input fill:#f6f8fa,stroke:#57606a,color:#24292f,stroke-width:1.2px
+    classDef core fill:#ffffff,stroke:#57606a,color:#24292f,stroke-width:1.2px
+    classDef output fill:#f6f8fa,stroke:#57606a,color:#24292f,stroke-width:1.2px
     class text,vocab,ids input
     class embed,blocks,head core
     class pred,loss,update,save,decode output
@@ -96,9 +96,9 @@ flowchart TB
     ffn --> add2["Residual add"]
     add1 -. "skip connection" .-> add2
 
-    classDef input fill:#dbeafe,stroke:#2563eb,color:#172554,stroke-width:1.5px
-    classDef op fill:#bfdbfe,stroke:#2563eb,color:#172554,stroke-width:1.5px
-    classDef residual fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:1.5px
+    classDef input fill:#f6f8fa,stroke:#57606a,color:#24292f,stroke-width:1.2px
+    classDef op fill:#ffffff,stroke:#57606a,color:#24292f,stroke-width:1.2px
+    classDef residual fill:#f6f8fa,stroke:#57606a,color:#24292f,stroke-width:1.2px
     class x input
     class norm1,attn,norm2,ffn op
     class add1,add2 residual
