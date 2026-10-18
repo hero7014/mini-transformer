@@ -52,28 +52,25 @@ The final model is intentionally tiny. It trains on a small Chinese character co
 
 ## Model Data Flow
 
-```text
-Text
-  ↓
-Character vocabulary (stoi / itos)
-  ↓
-Token IDs: (B, T)
-  ↓
-Token embedding + positional embedding
-  ↓
-TransformerBlock × N
-  ├─ LayerNorm
-  ├─ Causal multi-head self-attention
-  ├─ Residual connection
-  ├─ LayerNorm
-  ├─ Feed-forward network: Linear → GELU → Linear
-  └─ Residual connection
-  ↓
-Final LayerNorm + language-model head
-  ↓
-Logits: (B, T, vocab_size)
-  ↓
-Next-token cross-entropy loss / autoregressive generation
+```mermaid
+flowchart LR
+    text["Text"] --> vocab["Character vocabulary<br/>stoi / itos"]
+    vocab --> ids["Token IDs<br/>(B, T)"]
+    ids --> embed["Token + position<br/>embedding"]
+    embed --> blocks["Transformer Block × N"]
+    blocks --> head["LM head<br/>logits"]
+    head --> pred["Next-token<br/>distribution"]
+    pred --> loss["Cross-entropy<br/>loss"]
+    loss --> update["Backward<br/>+ AdamW"]
+    update --> save["Save checkpoint"]
+    pred --> decode["Select token<br/>append + repeat"]
+
+    classDef input fill:#dbeafe,stroke:#2563eb,color:#172554,stroke-width:1.5px
+    classDef core fill:#bfdbfe,stroke:#2563eb,color:#172554,stroke-width:1.5px
+    classDef output fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:1.5px
+    class text,vocab,ids input
+    class embed,blocks,head core
+    class pred,loss,update,save,decode output
 ```
 
 The default training configuration in `09_train.py` is:
@@ -86,13 +83,28 @@ The default training configuration in `09_train.py` is:
 
 These values are chosen for fast, inspectable experiments and are not intended as production-model settings.
 
-## Architecture Diagram
+## Transformer Block
 
-<p align="center">
-  <img src="docs/transformer-flow.png" alt="Mini Transformer architecture and data flow" width="420">
-</p>
+```mermaid
+flowchart TB
+    x["Input x"] --> norm1["LayerNorm"]
+    norm1 --> attn["Causal multi-head<br/>self-attention"]
+    attn --> add1["Residual add"]
+    x -. "skip connection" .-> add1
+    add1 --> norm2["LayerNorm"]
+    norm2 --> ffn["Feed-forward network<br/>Linear → GELU → Linear"]
+    ffn --> add2["Residual add"]
+    add1 -. "skip connection" .-> add2
 
-The diagram summarizes the end-to-end path from text input to next-token prediction, training, checkpoint saving, and autoregressive generation. It also expands one Transformer block to show its internal operations.
+    classDef input fill:#dbeafe,stroke:#2563eb,color:#172554,stroke-width:1.5px
+    classDef op fill:#bfdbfe,stroke:#2563eb,color:#172554,stroke-width:1.5px
+    classDef residual fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:1.5px
+    class x input
+    class norm1,attn,norm2,ffn op
+    class add1,add2 residual
+```
+
+The first diagram shows the end-to-end path from text input to training and autoregressive generation. The second diagram expands one Transformer block and makes both residual paths explicit.
 
 ## Requirements
 

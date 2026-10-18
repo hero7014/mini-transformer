@@ -52,28 +52,25 @@
 
 ## 模型数据流
 
-```text
-文本
-  ↓
-字符词表（stoi / itos）
-  ↓
-Token IDs: (B, T)
-  ↓
-Token embedding + positional embedding
-  ↓
-TransformerBlock × N
-  ├─ LayerNorm
-  ├─ 因果多头自注意力
-  ├─ 残差连接
-  ├─ LayerNorm
-  ├─ 前馈网络：Linear → GELU → Linear
-  └─ 残差连接
-  ↓
-Final LayerNorm + language-model head
-  ↓
-Logits: (B, T, vocab_size)
-  ↓
-Next-token 交叉熵损失 / 自回归生成
+```mermaid
+flowchart LR
+    text["文本"] --> vocab["字符词表<br/>stoi / itos"]
+    vocab --> ids["Token IDs<br/>(B, T)"]
+    ids --> embed["Token + 位置<br/>Embedding"]
+    embed --> blocks["Transformer Block × N"]
+    blocks --> head["LM Head<br/>Logits"]
+    head --> pred["下一个 Token<br/>的概率分布"]
+    pred --> loss["交叉熵<br/>损失"]
+    loss --> update["Backward<br/>+ AdamW"]
+    update --> save["保存模型参数"]
+    pred --> decode["选择 Token<br/>追加并重复"]
+
+    classDef input fill:#dbeafe,stroke:#2563eb,color:#172554,stroke-width:1.5px
+    classDef core fill:#bfdbfe,stroke:#2563eb,color:#172554,stroke-width:1.5px
+    classDef output fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:1.5px
+    class text,vocab,ids input
+    class embed,blocks,head core
+    class pred,loss,update,save,decode output
 ```
 
 `09_train.py` 的默认训练配置为：
@@ -86,13 +83,28 @@ Next-token 交叉熵损失 / 自回归生成
 
 这些参数是为了快速实验和观察张量，不代表生产模型配置。
 
-## 结构图
+## Transformer Block
 
-<p align="center">
-  <img src="docs/transformer-flow.png" alt="Mini Transformer 架构与数据流" width="420">
-</p>
+```mermaid
+flowchart TB
+    x["输入 x"] --> norm1["LayerNorm"]
+    norm1 --> attn["因果多头<br/>自注意力"]
+    attn --> add1["残差相加"]
+    x -. "跳跃连接" .-> add1
+    add1 --> norm2["LayerNorm"]
+    norm2 --> ffn["前馈网络<br/>Linear → GELU → Linear"]
+    ffn --> add2["残差相加"]
+    add1 -. "跳跃连接" .-> add2
 
-这张图展示了从文本输入、next-token prediction、训练、保存模型参数到自回归生成的完整路径，同时展开了一个 Transformer block 的内部结构。
+    classDef input fill:#dbeafe,stroke:#2563eb,color:#172554,stroke-width:1.5px
+    classDef op fill:#bfdbfe,stroke:#2563eb,color:#172554,stroke-width:1.5px
+    classDef residual fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:1.5px
+    class x input
+    class norm1,attn,norm2,ffn op
+    class add1,add2 residual
+```
+
+第一张图展示从文本输入到训练和自回归生成的完整路径；第二张图展开单个 Transformer block，并明确标出两条残差路径。
 
 ## 环境要求
 
